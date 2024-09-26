@@ -30,6 +30,13 @@ set_target_properties(imgui PROPERTIES FOLDER "ThirdParty")
 set_target_properties(imgui_sfml PROPERTIES FOLDER "ThirdParty")
 set_target_properties(utility PROPERTIES FOLDER "ThirdParty")
 
+#sdl
+add_subdirectory(SDL2)
+
+set_target_properties(SDL2 PROPERTIES FOLDER "ThirdParty/SDL2")
+
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/SDL2/include")
+
 # SFML
 add_subdirectory(sfml)
 

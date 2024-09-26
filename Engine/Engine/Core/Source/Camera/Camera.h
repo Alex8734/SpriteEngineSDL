@@ -2,7 +2,6 @@
 
 #include <SFML/Graphics.hpp>
 
-
 #include "Math/Vector2.h"
 #include "Sprite/SpriteRepository.h"
 #include "Sprite/Components/Transform.h"

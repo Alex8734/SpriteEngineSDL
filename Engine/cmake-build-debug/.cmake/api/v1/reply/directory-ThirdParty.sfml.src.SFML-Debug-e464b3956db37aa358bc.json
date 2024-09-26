@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "ThirdParty/sfml/src/SFML",
+		"source" : "ThirdParty/sfml/src/SFML"
+	}
+}

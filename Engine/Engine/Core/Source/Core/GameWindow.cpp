@@ -1,5 +1,7 @@
 #include "GameWindow.h"
 
+#include "Event.h"
+
 // Ctor
 
 spe::GameWindow::GameWindow()
@@ -13,18 +15,54 @@ spe::GameWindow::GameWindow()
 
 spe::GameWindow::GameWindow(const spe::Vector2& size, const std::string& name)
 {
+    if(SDL_Init(SDL_INIT_VIDEO) < 0){
+        throw std::exception();
+    }
+
 	this->m_BackgroundColor = nullptr;
 	this->m_Size = size;
 	this->m_Camera = nullptr;
-	this->WindowEvent.type = sf::Event::GainedFocus;
-	this->m_ptr_Window = new sf::RenderWindow(sf::VideoMode((int)size.X, (int)size.Y), name, sf::Style::Default);
-	this->m_IsOpen = true;
+    this->WindowEvent.type = SDL_WINDOWEVENT_FOCUS_GAINED;//= sf::Event::GainedFocus;
 
-	this->m_WindowBounds = sf::IntRect(0, 0, this->m_ptr_Window->getSize().x, this->m_ptr_Window->getSize().y);
+	this->m_ptr_Window = SDL_CreateWindow(
+            name,
+            SDL_WINDOWPOS_CENTERED,
+            SDL_WINDOWPOS_CENTERED,
+            (int)size.X,
+            (int)size.Y,
+            SDL_WINDOW_SHOWN
+            );
+    //= new sf::RenderWindow(sf::VideoMode((int)size.X, (int)size.Y), name, sf::Style::Default);
+	if(!this->m_ptr_Window){
+        SDL_Quit();
+        this->m_IsOpen = false;
+        return;
+    }
+    this->m_ptr_Renderer = SDL_CreateRenderer(this->m_ptr_Window,-1,0);
+    if(!this->m_ptr_Renderer){
+        SDL_DestroyWindow(this->m_ptr_Window);
+        SDL_Quit();
+        this->m_IsOpen = false;
+        return;
+    }
+    this->m_IsOpen = true;
+    int width = 0;
+    int height = 0;
+    SDL_GetWindowSize(this->m_ptr_Window, &width, &height);
+	this->m_WindowBounds = {0,0, width,height }; //= sf::IntRect(0, 0, this->m_ptr_Window->getSize().x, this->m_ptr_Window->getSize().y);
 
-	this->m_ptr_Window->setKeyRepeatEnabled(false);
+    SDL_SetHint(SDL_HINT_KEY_REPEAT_DELAY, "0"); //this->m_ptr_Window->setKeyRepeatEnabled(false);
 
-	ImGui::SFML::Init(*this->m_ptr_Window);
+    //ImGui::SFML::Init(*this->m_ptr_Window);//TODO -> SDL
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+    ImGui_ImplSDL2_InitForSDLRenderer(
+            this->m_ptr_Window,
+            this->m_ptr_Renderer
+            );
+    ImGui_ImplSDLRenderer2_Init(this->m_ptr_Renderer);
 }
 
 // Private
@@ -33,62 +71,48 @@ void spe::GameWindow::UpdateCamera()
 {
 	if (this->m_Camera != nullptr)
 	{
-		this->m_Camera->CameraView.setSize(this->m_Size.X * this->m_Camera->GetZoom(), this->m_Size.Y * this->m_Camera->GetZoom());
-		this->m_ptr_Window->setView(this->m_Camera->CameraView);
-	}
-}
-
-void spe::GameWindow::Draw(spe::Sprite* ptr, const sf::Shader* shader, bool ignoreLight)
-{
-	if (shader != nullptr && ptr->SpriteRenderer.EffectedByLight && !ignoreLight)
-	{
-		this->m_ptr_Window->draw(ptr->GetSprite(), shader);
-	}
-	else
-	{
-		this->m_ptr_Window->draw(ptr->GetSprite());
-	}
+		this->m_Camera->Update();
 }
 
 // Public
-
 void spe::GameWindow::PollEvents()
 {
 	bool EventChanged = false;
 	Event.Type = spe::Event::None;
+	SDL_Event event;
 
-	while (this->m_ptr_Window->pollEvent(this->WindowEvent))
+	while (SDL_PollEvent(&event))
 	{
-		ImGui::SFML::ProcessEvent(this->WindowEvent);
+		ImGui_ImplSDL2_ProcessEvent(&event);
 
-		if (this->WindowEvent.type == sf::Event::Closed)
+		if (event.type == SDL_QUIT)
 		{
 			this->m_IsOpen = false;
-			this->m_ptr_Window->close();
+			SDL_DestroyWindow(this->m_ptr_Window);
 		}
 		if (!EventChanged)
 		{
-			if (this->WindowEvent.type == sf::Event::KeyReleased)
+			if (event.type == SDL_KEYUP)
 			{
 				Event.Type = spe::Event::KeyReleased;
 				EventChanged = true;
 			}
-			else if (this->WindowEvent.type == sf::Event::KeyPressed)
+			else if (event.type == SDL_KEYDOWN)
 			{
 				EventChanged = true;
 				Event.Type = spe::Event::KeyPressed;
 			}
-			else if (this->WindowEvent.type == sf::Event::MouseButtonPressed)
+			else if (event.type == SDL_MOUSEBUTTONDOWN)
 			{
-				if (this->WindowEvent.mouseButton.button == sf::Mouse::Left)
+				if (event.button.button == SDL_BUTTON_LEFT)
 				{
 					Event.Type = spe::Event::MousePressedLeft;
 					EventChanged = true;
 				}
 			}
-			else if (this->WindowEvent.type == sf::Event::MouseButtonReleased)
+			else if (event.type == SDL_MOUSEBUTTONUP)
 			{
-				if (this->WindowEvent.mouseButton.button == sf::Mouse::Left)
+				if (event.button.button == SDL_BUTTON_LEFT)
 				{
 					Event.Type = spe::Event::MouseReleasedLeft;
 					EventChanged = true;
@@ -99,60 +123,71 @@ void spe::GameWindow::PollEvents()
 				EventChanged = true;
 				Event.Type = spe::Event::None;
 			}
-			Event.Key = static_cast<spe::KeyBoardCode>(static_cast<sf::Keyboard::Key>(this->WindowEvent.key.code));
+			Event.Key = static_cast<spe::KeyBoardCode>(event.key.keysym.sym);
 		}
 	}
-	ImGui::SFML::Update(*m_ptr_Window, Time::s_DeltaClock.restart());
+	ImGui_ImplSDL2_NewFrame(this->m_ptr_Window);
 }
 
-void spe::GameWindow::DrawEngine(spe::Sprite* ptr, const sf::Shader* shader, bool ignoreLight)
-{
-	this->Draw(ptr, shader, ignoreLight);
-}
-
-void spe::GameWindow::DrawGame(spe::Sprite* ptr, const sf::Shader* shader, bool ignoreLight)
+void spe::GameWindow::Draw(spe::Sprite* ptr, const S shader, bool ignoreLight)
 {
 	if (!ptr->SpriteRenderer.Render)
 	{
 		return;
 	}
-	this->Draw(ptr, shader, ignoreLight);
-}
+	if (shader != nullptr && ptr->SpriteRenderer.EffectedByLight && !ignoreLight)
+	{
+		this->m_ptr_Window->draw(ptr->GetSprite(), shader);
+	}
+	else 
+	{
 
+		this->m_ptr_Window->draw(ptr->GetSprite());
+	}
+}
 
 void spe::GameWindow::Display()
 {
-	ImGui::SFML::Render(*this->m_ptr_Window);
 
+	ImGui_ImplSDLRenderer2_NewFrame();
+    ImGui_ImplSDL2_NewFrame(this->m_ptr_Window);
+    ImGui::NewFrame();
 	this->UpdateCamera();
-	this->m_ptr_Window->display();
+
 }
 
 void spe::GameWindow::Clear()
 {
-	sf::Color backgroundColor = sf::Color(0, 0, 0);
+	SDL_Color backgroundColor = SDL_Color(0, 0, 0);
 
 	if (this->m_BackgroundColor != nullptr)
 	{
-		backgroundColor = sf::Color(sf::Uint8(this->m_BackgroundColor->X),
-			sf::Uint8(this->m_BackgroundColor->Y),
-			sf::Uint8(this->m_BackgroundColor->Z));
+		backgroundColor = SDL_Color(SDL_MAX_UINT8(this->m_BackgroundColor->X),
+			SDL_MAX_UINT8(this->m_BackgroundColor->Y),
+			SDL_MAX_UINT8(this->m_BackgroundColor->Z));
 	}
-	this->m_ptr_Window->clear(backgroundColor);
+
+	SDL_RenderClear(SDL_GetRenderer(this->m_ptr_Window));
 }
 
 void spe::GameWindow::Shutdown()
 {
+    SDL_DestroyRenderer(this->m_ptr_Renderer);
+    SDL_DestroyWindow(this->m_ptr_Window);
+    SDL_Quit();
 
-	ImGui::SFML::Shutdown();
+    ImGui_ImplSDLRenderer2_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
+
+    delete this->m_ptr_Renderer;
 	delete this->m_ptr_Window;
 	this->m_IsOpen = false;
 }
 
 bool spe::GameWindow::ContainsCursor()
 {
-	sf::Vector2i mousePosition = sf::Mouse::getPosition(*this->m_ptr_Window);
-	return this->m_WindowBounds.contains(mousePosition);
+    return SDL_MouseInWindow(this->m_ptr_Window);//DONE
 }
 	
 
