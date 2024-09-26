@@ -16,9 +16,11 @@ target_include_directories(Core PUBLIC "Source")
 target_include_directories(Core PUBLIC "${EXTERNAL_LIBRARIES_FOLDER}/imgui")
 target_include_directories(Core PUBLIC "${EXTERNAL_LIBRARIES_FOLDER}/imgui-sfml")
 target_include_directories(Core PUBLIC "${EXTERNAL_LIBRARIES_FOLDER}/utility")
+target_include_directories(Core PUBLIC "${EXTERNAL_LIBRARIES_FOLDER}/SDL2/include")
 target_include_directories(Core PUBLIC ${EXTERNAL_LIBRARIES_FOLDER})
 target_include_directories(Core PUBLIC "${SFML_DIR}/include")
 target_include_directories(Core PUBLIC ${CMAKE_SOURCE_DIR}/Engine)
+
 
 target_link_libraries(Core PUBLIC 
     sfml-graphics 

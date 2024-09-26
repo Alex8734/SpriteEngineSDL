@@ -9,3 +9,6 @@
 [submodule "Engine/ThirdParty/imgui-sfml"]
 	path = Engine/ThirdParty/imgui-sfml
 	url = https://github.com/SFML/imgui-sfml.git
+[submodule "Engine/ThirdParty/SDL2"]
+	path = Engine/ThirdParty/SDL2
+	url = https://github.com/libsdl-org/SDL.git
